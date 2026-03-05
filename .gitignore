@@ -1,0 +1,42 @@
+# Virtual environment
+venv/
+.venv/
+env/
+
+# Python cache
+__pycache__/
+*.py[cod]
+*.pyo
+*.pyd
+
+# Data (large generated files — keep source data tracked)
+data/faiss.index
+data/chunks_store.pkl
+
+# Model weights (adapter pushed separately by peer)
+models/
+
+# Jupyter checkpoints
+.ipynb_checkpoints/
+
+# Hugging Face cache
+.cache/
+
+# Environment variables
+.env
+
+# PDFs (project docs, not needed in repo)
+*.pdf
+
+# OS
+.DS_Store
+Thumbs.db
+Thumbs.db
+
+# VS Code
+.vscode/
+
+# Dist / build
+dist/
+build/
+*.egg-info/
