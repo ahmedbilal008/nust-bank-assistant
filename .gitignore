@@ -13,7 +13,7 @@ __pycache__/
 data/faiss.index
 data/chunks_store.pkl
 
-# Model weights (adapter pushed separately by peer)
+# Model weights 
 models/
 
 # Jupyter checkpoints
