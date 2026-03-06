@@ -13,8 +13,7 @@ __pycache__/
 data/faiss.index
 data/chunks_store.pkl
 
-# Model weights 
-models/
+models/checkpoint-*/
 
 # Jupyter checkpoints
 .ipynb_checkpoints/
