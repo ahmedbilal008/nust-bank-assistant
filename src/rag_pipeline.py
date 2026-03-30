@@ -8,9 +8,14 @@ from langchain_core.prompts import PromptTemplate
 from peft import PeftModel
 from transformers import AutoModelForCausalLM, AutoTokenizer
 
-from guardrails import evaluate_input, evaluate_output
-from retriever import Retriever
-from tracking import MLflowTracker
+try:
+    from guardrails import evaluate_input, evaluate_output
+    from retriever import Retriever
+    from tracking import MLflowTracker
+except ModuleNotFoundError:
+    from src.guardrails import evaluate_input, evaluate_output
+    from src.retriever import Retriever
+    from src.tracking import MLflowTracker
 
 logging.basicConfig(level=logging.INFO, format="%(asctime)s [%(levelname)s] %(message)s")
 logger = logging.getLogger(__name__)
