@@ -51,6 +51,7 @@ Use this before or after ingesting new documents. To refresh data and index in o
 ```bash
 python src/data_governance.py --run-pipeline --rebuild-index --tag update_001
 ```
+Each governance run is also tracked in MLflow (experiment: `nust-bank-data-governance`).
 
 ### 3 — Fine-tune on Google Colab
 Open `notebooks/colab_train.ipynb` in Google Colab (T4 GPU runtime).  
@@ -74,6 +75,13 @@ python src/rag_pipeline.py
 Interactive terminal chat with two-stage retrieval:
 1) dense FAISS retrieval (top-12), 2) cross-encoder reranking (top-5).
 Out-of-domain queries (dense score < 0.35) are refused automatically.
+Inference events are logged to MLflow (experiment: `nust-bank-inference`).
+
+### 5.1 — View MLflow Runs
+```bash
+mlflow ui --backend-store-uri sqlite:///mlflow.db
+```
+Open http://127.0.0.1:5000 to compare data versions and inference metrics.
 
 ### 6 — FastAPI Backend (optional)
 ```bash

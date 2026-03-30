@@ -42,3 +42,8 @@ Thumbs.db
 dist/
 build/
 *.egg-info/
+
+# MLflow local tracking
+mlruns/
+mlflow.db
+mlartifacts/

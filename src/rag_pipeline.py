@@ -1,5 +1,6 @@
 import logging
 import os
+import time
 from pathlib import Path
 
 import torch
@@ -9,6 +10,7 @@ from transformers import AutoModelForCausalLM, AutoTokenizer
 
 from guardrails import evaluate_input, evaluate_output
 from retriever import Retriever
+from tracking import MLflowTracker
 
 logging.basicConfig(level=logging.INFO, format="%(asctime)s [%(levelname)s] %(message)s")
 logger = logging.getLogger(__name__)
@@ -59,6 +61,7 @@ class RAGPipeline:
     def __init__(self):
         logger.info("Loading retriever...")
         self.retriever = Retriever()
+        self.tracker = MLflowTracker(enabled=True)
 
         logger.info("Loading language model...")
         self.tokenizer = AutoTokenizer.from_pretrained(BASE_MODEL)
@@ -82,23 +85,51 @@ class RAGPipeline:
         if ADAPTER_DIR.exists():
             logger.info(f"Loading LoRA adapter from {ADAPTER_DIR}")
             self.model = PeftModel.from_pretrained(base, str(ADAPTER_DIR))
+            self.used_adapter = True
         else:
             logger.warning("LoRA adapter not found. Using base model.")
             self.model = base
+            self.used_adapter = False
 
         self.model.eval()
         logger.info("RAG pipeline ready.")
 
     def answer(self, question: str) -> str:
+        start = time.perf_counter()
+
         input_decision = evaluate_input(question)
         if not input_decision.allowed:
             logger.info(f"Input guardrail blocked request: {input_decision.reason}")
+            self.tracker.log_inference(
+                query=question,
+                in_domain=False,
+                top_dense_score=0.0,
+                retrieved_count=0,
+                reranked_count=0,
+                latency_ms=int((time.perf_counter() - start) * 1000),
+                blocked_reason=input_decision.reason,
+                used_adapter=self.used_adapter,
+                base_model=BASE_MODEL,
+            )
             return input_decision.message
 
         dense_results = self.retriever.retrieve(question, top_k=RETRIEVE_K)
+        top_dense_score = dense_results[0]["score"] if dense_results else 0.0
+        in_domain = self.retriever.is_in_domain(dense_results)
 
-        if not self.retriever.is_in_domain(dense_results):
+        if not in_domain:
             logger.info(f"Out-of-domain query rejected: {question}")
+            self.tracker.log_inference(
+                query=question,
+                in_domain=False,
+                top_dense_score=top_dense_score,
+                retrieved_count=len(dense_results),
+                reranked_count=0,
+                latency_ms=int((time.perf_counter() - start) * 1000),
+                blocked_reason="ood",
+                used_adapter=self.used_adapter,
+                base_model=BASE_MODEL,
+            )
             return REFUSAL_RESPONSE
 
         results = self.retriever.retrieve_with_rerank(
@@ -124,8 +155,30 @@ class RAGPipeline:
         output_decision = evaluate_output(response)
         if not output_decision.allowed:
             logger.info(f"Output guardrail blocked response: {output_decision.reason}")
+            self.tracker.log_inference(
+                query=question,
+                in_domain=True,
+                top_dense_score=top_dense_score,
+                retrieved_count=len(dense_results),
+                reranked_count=len(results),
+                latency_ms=int((time.perf_counter() - start) * 1000),
+                blocked_reason=output_decision.reason,
+                used_adapter=self.used_adapter,
+                base_model=BASE_MODEL,
+            )
             return output_decision.message
 
+        self.tracker.log_inference(
+            query=question,
+            in_domain=True,
+            top_dense_score=top_dense_score,
+            retrieved_count=len(dense_results),
+            reranked_count=len(results),
+            latency_ms=int((time.perf_counter() - start) * 1000),
+            blocked_reason="",
+            used_adapter=self.used_adapter,
+            base_model=BASE_MODEL,
+        )
         return response.strip()
 
 

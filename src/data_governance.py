@@ -6,6 +6,8 @@ from datetime import datetime, timezone
 from pathlib import Path
 from statistics import mean
 
+from tracking import MLflowTracker
+
 ROOT = Path(__file__).resolve().parent.parent
 DATA_DIR = ROOT / "data"
 META_DIR = DATA_DIR / "metadata"
@@ -150,7 +152,7 @@ def _version_id(profile: dict) -> str:
     return f"v_{stamp}_{digest}"
 
 
-def _write_profile_and_version(profile: dict) -> tuple[Path, Path]:
+def _write_profile_and_version(profile: dict) -> tuple[Path, Path, dict]:
     META_DIR.mkdir(parents=True, exist_ok=True)
     version = _version_id(profile)
 
@@ -181,7 +183,7 @@ def _write_profile_and_version(profile: dict) -> tuple[Path, Path]:
     with open(VERSIONS_LOG, "a", encoding="utf-8") as f:
         f.write(json.dumps(version_entry, ensure_ascii=False) + "\n")
 
-    return profile_path, VERSIONS_LOG
+    return profile_path, VERSIONS_LOG, version_entry
 
 
 def main() -> None:
@@ -202,7 +204,10 @@ def main() -> None:
         build_index()
 
     profile = _build_profile(tag=args.tag)
-    profile_path, versions_log = _write_profile_and_version(profile)
+    profile_path, versions_log, version_entry = _write_profile_and_version(profile)
+
+    tracker = MLflowTracker(enabled=True)
+    tracker.log_data_governance(version_entry, profile_path)
 
     print("Data governance run completed")
     print(f"Pairs: {profile['pairs_profile']['total_pairs']}")
