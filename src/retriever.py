@@ -6,7 +6,7 @@ from pathlib import Path
 
 import faiss
 import numpy as np
-from sentence_transformers import SentenceTransformer
+from sentence_transformers import CrossEncoder, SentenceTransformer
 
 logging.basicConfig(level=logging.INFO, format="%(asctime)s [%(levelname)s] %(message)s")
 logger = logging.getLogger(__name__)
@@ -18,16 +18,24 @@ INDEX_PATH = DATA_DIR / "faiss.index"
 CHUNKS_STORE_PATH = DATA_DIR / "chunks_store.pkl"
 
 EMBED_MODEL = "sentence-transformers/all-MiniLM-L6-v2"
+RERANK_MODEL = "cross-encoder/ms-marco-MiniLM-L-6-v2"
 SIMILARITY_THRESHOLD = 0.35
 
 
 class Retriever:
     def __init__(self, index_path: Path = INDEX_PATH, chunks_path: Path = CHUNKS_STORE_PATH):
         self.model = SentenceTransformer(EMBED_MODEL)
+        self._cross_encoder = None
         self.index = faiss.read_index(str(index_path))
         with open(chunks_path, "rb") as f:
             self.chunks = pickle.load(f)
         logger.info(f"Loaded FAISS index with {self.index.ntotal} vectors")
+
+    def _get_cross_encoder(self) -> CrossEncoder:
+        if self._cross_encoder is None:
+            logger.info(f"Loading reranker model: {RERANK_MODEL}")
+            self._cross_encoder = CrossEncoder(RERANK_MODEL)
+        return self._cross_encoder
 
     def _embed(self, texts: list[str]) -> np.ndarray:
         embs = self.model.encode(texts, convert_to_numpy=True, normalize_embeddings=True)
@@ -53,6 +61,40 @@ class Retriever:
         if not results:
             return False
         return results[0]["score"] >= SIMILARITY_THRESHOLD
+
+    def rerank(self, query: str, candidates: list[dict], top_k: int = 5) -> list[dict]:
+        if not candidates:
+            return []
+
+        cross_encoder = self._get_cross_encoder()
+        pairs = [[query, c["text"]] for c in candidates]
+        rerank_scores = cross_encoder.predict(pairs)
+
+        reranked = []
+        for c, r_score in zip(candidates, rerank_scores):
+            item = dict(c)
+            item["dense_score"] = item["score"]
+            item["score"] = float(r_score)
+            reranked.append(item)
+
+        reranked.sort(key=lambda x: x["score"], reverse=True)
+        return reranked[:top_k]
+
+    def retrieve_with_rerank(
+        self,
+        query: str,
+        retrieve_k: int = 12,
+        top_k: int = 5,
+    ) -> list[dict]:
+        candidates = self.retrieve(query, top_k=retrieve_k)
+        if not candidates:
+            return []
+
+        try:
+            return self.rerank(query, candidates, top_k=top_k)
+        except Exception as ex:
+            logger.warning(f"Reranking failed, falling back to dense retrieval: {ex}")
+            return candidates[:top_k]
 
 
 def build_index(chunks_path: Path = CHUNKS_PATH) -> None:

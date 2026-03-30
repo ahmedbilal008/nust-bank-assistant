@@ -12,6 +12,7 @@ __pycache__/
 # Data (large generated files — keep source data tracked)
 data/faiss.index
 data/chunks_store.pkl
+data/metadata/
 
 models/checkpoint-*/
 models/phi3-lora-adapter/checkpoint-*/

@@ -3,9 +3,11 @@ import os
 from pathlib import Path
 
 import torch
+from langchain_core.prompts import PromptTemplate
 from peft import PeftModel
 from transformers import AutoModelForCausalLM, AutoTokenizer
 
+from guardrails import evaluate_input, evaluate_output
 from retriever import Retriever
 
 logging.basicConfig(level=logging.INFO, format="%(asctime)s [%(levelname)s] %(message)s")
@@ -30,18 +32,26 @@ REFUSAL_RESPONSE = (
 MAX_NEW_TOKENS = 256
 TEMPERATURE = 0.3
 TOP_K = 5
+RETRIEVE_K = 12
+
+
+PROMPT_TEMPLATE = PromptTemplate.from_template(
+    "<|system|>\n{system_prompt}<|end|>\n"
+    "<|user|>\n"
+    "Context:\n{context}\n\n"
+    "Question: {question}<|end|>\n"
+    "<|assistant|>\n"
+)
 
 
 def _build_prompt(question: str, context_chunks: list[dict]) -> str:
     context_text = "\n\n".join(
         f"[Source: {c['product']}]\n{c['text']}" for c in context_chunks
     )
-    return (
-        f"<|system|>\n{SYSTEM_PROMPT}<|end|>\n"
-        f"<|user|>\n"
-        f"Context:\n{context_text}\n\n"
-        f"Question: {question}<|end|>\n"
-        f"<|assistant|>\n"
+    return PROMPT_TEMPLATE.format(
+        system_prompt=SYSTEM_PROMPT,
+        context=context_text,
+        question=question,
     )
 
 
@@ -80,12 +90,22 @@ class RAGPipeline:
         logger.info("RAG pipeline ready.")
 
     def answer(self, question: str) -> str:
-        results = self.retriever.retrieve(question, top_k=TOP_K)
+        input_decision = evaluate_input(question)
+        if not input_decision.allowed:
+            logger.info(f"Input guardrail blocked request: {input_decision.reason}")
+            return input_decision.message
 
-        if not self.retriever.is_in_domain(results):
+        dense_results = self.retriever.retrieve(question, top_k=RETRIEVE_K)
+
+        if not self.retriever.is_in_domain(dense_results):
             logger.info(f"Out-of-domain query rejected: {question}")
             return REFUSAL_RESPONSE
 
+        results = self.retriever.retrieve_with_rerank(
+            question,
+            retrieve_k=RETRIEVE_K,
+            top_k=TOP_K,
+        )
         prompt = _build_prompt(question, results[:3])
         inputs = self.tokenizer(prompt, return_tensors="pt").to(self.device)
 
@@ -101,6 +121,11 @@ class RAGPipeline:
 
         generated = output_ids[0][inputs["input_ids"].shape[1]:]
         response = self.tokenizer.decode(generated, skip_special_tokens=True)
+        output_decision = evaluate_output(response)
+        if not output_decision.allowed:
+            logger.info(f"Output guardrail blocked response: {output_decision.reason}")
+            return output_decision.message
+
         return response.strip()
 
 

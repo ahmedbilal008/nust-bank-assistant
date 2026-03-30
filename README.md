@@ -42,6 +42,16 @@ python src/retriever.py
 ```
 Embeds chunks with all-MiniLM-L6-v2 and builds the cosine similarity index.
 
+### 2.1 — Data Profiling + Versioning
+```bash
+python src/data_governance.py --tag baseline
+```
+Generates dataset profiling artifacts and appends a new version entry in `data/metadata/versions.jsonl`.
+Use this before or after ingesting new documents. To refresh data and index in one run:
+```bash
+python src/data_governance.py --run-pipeline --rebuild-index --tag update_001
+```
+
 ### 3 — Fine-tune on Google Colab
 Open `notebooks/colab_train.ipynb` in Google Colab (T4 GPU runtime).  
 Upload `data/qa_pairs.json` when prompted. After training, download the adapter zip.
@@ -61,7 +71,9 @@ Downloads Phi-3.5-mini-instruct (~7.6 GB) to the HuggingFace cache. Resumes auto
 ```bash
 python src/rag_pipeline.py
 ```
-Interactive terminal chat. Out-of-domain queries (score < 0.35) are refused automatically.
+Interactive terminal chat with two-stage retrieval:
+1) dense FAISS retrieval (top-12), 2) cross-encoder reranking (top-5).
+Out-of-domain queries (dense score < 0.35) are refused automatically.
 
 ### 6 — FastAPI Backend (optional)
 ```bash
@@ -73,11 +85,14 @@ POST `/chat` with `{"query": "..."}` → `{"answer": "..."}`.
 
 ```
 User Query
+  → Input guardrails (injection/sensitive request checks)
   → Embed (all-MiniLM-L6-v2)
-  → FAISS search (cosine, top-5)
+  → FAISS search (cosine, top-12)
+  → Cross-encoder rerank (top-5)
   → OOD guard (score < 0.35 → polite refusal)
-  → Prompt: [system | retrieved context | question]
+  → Prompt template (LangChain): [system | retrieved context | question]
   → Generate (Phi-3.5 Mini + LoRA adapter)
+  → Output guardrails (unsafe response filtering)
   → Answer
 ```
 
@@ -88,6 +103,9 @@ User Query
 | LLM         | Phi-3.5-mini-instruct (3.8B)        |
 | Fine-tuning | QLoRA (4-bit, r=8, alpha=16)        |
 | Embeddings  | all-MiniLM-L6-v2                    |
+| Re-ranker   | cross-encoder/ms-marco-MiniLM-L-6-v2 |
 | Vector DB   | FAISS IndexFlatIP (cosine)          |
+| Prompting   | LangChain PromptTemplate            |
+| Guardrails  | Input/output policy checks + OOD gate |
 | Backend     | FastAPI                             |
 | Training    | Google Colab T4 GPU                 |
