@@ -1,11 +1,9 @@
-import { useState, useEffect } from "react"
+import { useState, useEffect, useRef } from "react"
 import { motion } from "framer-motion"
 import { HugeiconsIcon } from "@hugeicons/react"
 import {
   Add01Icon,
   Attachment01Icon,
-
-  ChatBotIcon,
   ChatIcon,
   InternetIcon,
   Logout01Icon,
@@ -81,6 +79,54 @@ function App() {
 function AppLayout({ isDark, toggleDark }: { isDark: boolean; toggleDark: () => void }) {
   const { state } = useSidebar()
   const isCollapsed = state === "collapsed"
+
+  const [query, setQuery] = useState("")
+  const [messages, setMessages] = useState<{ role: "user" | "assistant"; content: string }[]>([])
+  const [isLoading, setIsLoading] = useState(false)
+  const messagesEndRef = useRef<HTMLDivElement>(null)
+
+  const scrollToBottom = () => {
+    messagesEndRef.current?.scrollIntoView({ behavior: "smooth" })
+  }
+
+  useEffect(() => {
+    scrollToBottom()
+  }, [messages])
+
+  const handleSend = async (text?: string) => {
+    const message = text ?? query.trim()
+    if (!message || isLoading) return
+
+    setMessages(prev => [...prev, { role: "user", content: message }])
+    setQuery("")
+    setIsLoading(true)
+
+    try {
+      const res = await fetch("https://curblike-theologically-lavelle.ngrok-free.dev/chat", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ query: message }),
+      })
+
+      if (!res.ok) {
+        throw new Error(`Server error: ${res.status}`)
+      }
+
+      const data = await res.json()
+      setMessages(prev => [...prev, { role: "assistant", content: data.answer }])
+    } catch (err) {
+      setMessages(prev => [...prev, { role: "assistant", content: "Sorry, something went wrong. Please try again." }])
+    } finally {
+      setIsLoading(false)
+    }
+  }
+
+  const handleKeyDown = (e: React.KeyboardEvent<HTMLTextAreaElement>) => {
+    if (e.key === "Enter" && !e.shiftKey) {
+      e.preventDefault()
+      handleSend()
+    }
+  }
 
   return (
     <motion.div layout className="relative mx-auto flex min-h-screen w-full sm:p-4">
@@ -192,6 +238,54 @@ function AppLayout({ isDark, toggleDark }: { isDark: boolean; toggleDark: () => 
               viewport={{ once: true, amount: 0.25 }}
               transition={{ duration: 0.55, ease: [0.16, 1, 0.3, 1] }}
             >
+              {/* Messages area */}
+              {messages.length > 0 ? (
+                <ScrollArea className="mb-6 flex-1 w-full">
+                  <div className="space-y-4 pb-4">
+                    {messages.map((msg, i) => (
+                      <motion.div
+                        key={i}
+                        initial={{ opacity: 0, y: 10 }}
+                        animate={{ opacity: 1, y: 0 }}
+                        transition={{ duration: 0.3 }}
+                        className={cn(
+                          "flex w-full",
+                          msg.role === "user" ? "justify-end" : "justify-start"
+                        )}
+                      >
+                        <div
+                          className={cn(
+                            "max-w-[80%] rounded-2xl px-4 py-3 text-sm leading-relaxed",
+                            msg.role === "user"
+                              ? "bg-primary text-primary-foreground"
+                              : "bg-primary/8 text-slate-800 dark:bg-primary/15 dark:text-slate-200"
+                          )}
+                        >
+                          {msg.content}
+                        </div>
+                      </motion.div>
+                    ))}
+                    {isLoading && (
+                      <motion.div
+                        initial={{ opacity: 0, y: 10 }}
+                        animate={{ opacity: 1, y: 0 }}
+                        className="flex justify-start"
+                      >
+                        <div className="flex items-center gap-2 rounded-2xl bg-primary/8 px-4 py-3 text-sm text-slate-500 dark:bg-primary/15 dark:text-slate-400">
+                          <span className="inline-flex gap-1">
+                            <span className="size-1.5 animate-bounce rounded-full bg-primary/50" style={{ animationDelay: "0ms" }} />
+                            <span className="size-1.5 animate-bounce rounded-full bg-primary/50" style={{ animationDelay: "150ms" }} />
+                            <span className="size-1.5 animate-bounce rounded-full bg-primary/50" style={{ animationDelay: "300ms" }} />
+                          </span>
+                          Thinking...
+                        </div>
+                      </motion.div>
+                    )}
+                    <div ref={messagesEndRef} />
+                  </div>
+                </ScrollArea>
+              ) : (
+                <>
               <Badge className="mb-6 rounded-full bg-primary/9 px-4 py-1.5 text-primary">Premium Banking Intelligence</Badge>
               <h1 className="font-robit text-center text-4xl leading-tight font-bold text-primary sm:text-5xl">
                 NUST Bank Assistant
@@ -199,29 +293,28 @@ function AppLayout({ isDark, toggleDark }: { isDark: boolean; toggleDark: () => 
               <p className="mt-5 max-w-2xl text-center text-base leading-relaxed text-slate-600 sm:text-xl dark:text-slate-400">
                 Experience the future of precision banking. Securely manage assets, analyze spending, and forecast wealth with your dedicated AI financial partner.
               </p>
+                </>
+              )}
 
               <motion.div
-                className="mt-10 w-full"
+                className={cn("w-full", messages.length === 0 ? "mt-10" : "mt-auto")}
                 initial={{ opacity: 0, scale: 0.97 }}
                 whileInView={{ opacity: 1, scale: 1 }}
                 viewport={{ once: true, amount: 0.45 }}
                 transition={{ delay: 0.12, duration: 0.45 }}
               >
                 <div className="overflow-hidden rounded-[24px] border-[1.5px] border-primary/15 bg-gradient-to-b from-white/90 to-white/70 shadow-[0_24px_60px_-20px_hsl(214_97%_27%/0.25),inset_0_2px_16px_rgba(255,255,255,0.9)] backdrop-blur-2xl dark:from-slate-800/90 dark:to-slate-800/70 dark:shadow-[0_24px_60px_-20px_hsl(214_97%_73%/0.15),inset_0_2px_16px_rgba(255,255,255,0.05)]">
-                  {/* Top row — @Add context pill */}
-                  <div className="px-5 pt-4 pb-1">
-                    <button className="inline-flex items-center gap-1.5 rounded-full border border-primary/15 bg-primary/[0.06] px-3.5 py-1.5 text-xs font-medium text-primary/70 transition hover:border-primary/30 hover:bg-primary/10 hover:text-primary">
-                      <span className="text-sm font-semibold leading-none">@</span>
-                      Add context
-                    </button>
-                  </div>
+                  
 
                   {/* Textarea */}
                   <div className="px-5 py-2">
                     <Textarea
-                      className="min-h-[48px] w-full resize-none border-0 bg-transparent p-0 text-[15px] leading-relaxed text-slate-800 placeholder:text-slate-400 focus-visible:ring-0 dark:text-slate-200 dark:placeholder:text-slate-500"
+                      className="min-h-[48px] w-full resize-none border-0 bg-transparent p-0 text-[15px] leading-relaxed text-slate-800 placeholder:text-slate-400 focus-visible:ring-0 dark:text-slate-200 dark:placeholder:text-slate-500 pt-4"
                       placeholder="Ask about your balance, investments, or market trends..."
                       rows={1}
+                      value={query}
+                      onChange={(e) => setQuery(e.target.value)}
+                      onKeyDown={handleKeyDown}
                     />
                   </div>
 
@@ -232,18 +325,25 @@ function AppLayout({ isDark, toggleDark }: { isDark: boolean; toggleDark: () => 
                         <HugeiconsIcon icon={Attachment01Icon} size={18} strokeWidth={1.8} />
                       </button>
                       <span className="text-xs font-medium text-primary/50">Auto</span>
-                      <button className="inline-flex items-center gap-1.5 text-xs font-medium text-primary/50 transition hover:text-primary/80">
-                        <HugeiconsIcon icon={InternetIcon} size={16} strokeWidth={1.8} />
-                        All Sources
-                      </button>
+                      
                     </div>
-                    <Button className="size-10 shrink-0 rounded-full border border-primary/15 bg-primary p-0 text-primary-foreground shadow-lg shadow-primary/25 transition hover:bg-primary/90">
+                    <Button
+                      className={cn(
+                        "size-10 shrink-0 rounded-full border border-primary/15 p-0 shadow-lg transition",
+                        query.trim()
+                          ? "bg-primary text-primary-foreground shadow-primary/25 hover:bg-primary/90 cursor-pointer"
+                          : "bg-primary/30 text-primary-foreground/50 shadow-none cursor-not-allowed"
+                      )}
+                      disabled={!query.trim() || isLoading}
+                      onClick={() => handleSend()}
+                    >
                       <HugeiconsIcon icon={ArrowUp02Icon} size={20} strokeWidth={2.2} />
                     </Button>
                   </div>
                 </div>
               </motion.div>
 
+              {messages.length === 0 && (
               <div className="mt-6 flex w-full flex-wrap items-center justify-center gap-2.5">
                 {quickActions.map((action, index) => (
                   <motion.div
@@ -256,12 +356,14 @@ function AppLayout({ isDark, toggleDark }: { isDark: boolean; toggleDark: () => 
                     <Button
                       variant="outline"
                       className="h-10 rounded-full border-primary/12 bg-white/70 px-4 text-xs text-primary hover:bg-primary/7 dark:bg-slate-800/70 dark:hover:bg-primary/10"
+                      onClick={() => handleSend(action)}
                     >
-                      {`\"${action}\"`}
+                      {`"${action}"`}
                     </Button>
                   </motion.div>
                 ))}
               </div>
+              )}
 
               
             </motion.section>
