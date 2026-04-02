@@ -7,6 +7,7 @@ import sys
 sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
 from fastapi import FastAPI, HTTPException
+from fastapi.middleware.cors import CORSMiddleware
 from pydantic import BaseModel
 import uvicorn
 from pyngrok import ngrok, conf
@@ -22,6 +23,15 @@ app = FastAPI(
     title="NUST Bank RAG API",
     description="RAG Pipeline served via Ngrok from Google Colab",
     version="1.0"
+)
+
+# Allow CORS for ngrok/frontend communication
+app.add_middleware(
+    CORSMiddleware,
+    allow_origins=["*"],
+    allow_credentials=True,
+    allow_methods=["*"],
+    allow_headers=["*"],
 )
 
 # Initialize pipeline lazily to save memory during startup/docs building
