@@ -1,23 +1,24 @@
+import { useState, useEffect } from "react"
 import { motion } from "framer-motion"
 import { HugeiconsIcon } from "@hugeicons/react"
 import {
-  ArrowRight01Icon,
-  ChatAdd01Icon,
+  Add01Icon,
+  Attachment01Icon,
+
   ChatBotIcon,
   ChatIcon,
-  HelpCircleIcon,
+  InternetIcon,
   Logout01Icon,
-  Notification01Icon,
-  Search01Icon,
+  Moon02Icon,
+  Sun03Icon,
+  ArrowUp02Icon,
 } from "@hugeicons/core-free-icons"
 
-import { Avatar, AvatarFallback } from "@/components/ui/avatar"
 import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
 import { Card, CardContent } from "@/components/ui/card"
-import { Input } from "@/components/ui/input"
+import { Textarea } from "@/components/ui/textarea"
 import { ScrollArea } from "@/components/ui/scroll-area"
-import { Separator } from "@/components/ui/separator"
 import { cn } from "@/lib/utils"
 
 import {
@@ -43,26 +44,41 @@ const historyItems = [
 
 
 function App() {
+  const [isDark, setIsDark] = useState(() => {
+    if (typeof window !== "undefined") {
+      return document.documentElement.classList.contains("dark")
+    }
+    return false
+  })
+
+  useEffect(() => {
+    if (isDark) {
+      document.documentElement.classList.add("dark")
+    } else {
+      document.documentElement.classList.remove("dark")
+    }
+  }, [isDark])
+
   return (
-    <div className="relative min-h-screen overflow-hidden bg-[radial-gradient(1000px_500px_at_10%_0%,rgba(2,62,138,0.18),transparent),linear-gradient(160deg,#f5fbff_0%,#ebf3ff_55%,#f8fcff_100%)] text-slate-900">
+    <div className="relative min-h-screen overflow-hidden bg-[radial-gradient(1000px_500px_at_10%_0%,hsl(214_97%_27%/0.18),transparent),linear-gradient(160deg,#f5fbff_0%,#ebf3ff_55%,#f8fcff_100%)] text-slate-900 dark:bg-[radial-gradient(1000px_500px_at_10%_0%,hsl(214_97%_73%/0.18),transparent),linear-gradient(160deg,#0a1628_0%,#0d1f3c_55%,#0a1628_100%)] dark:text-slate-100">
       <motion.div
         className="pointer-events-none absolute inset-0"
         initial={{ opacity: 0 }}
         animate={{ opacity: 1 }}
         transition={{ duration: 0.9 }}
       >
-        <div className="absolute -top-20 left-[30%] size-72 rounded-full bg-[#023e8a]/8 blur-3xl" />
-        <div className="absolute bottom-0 right-0 size-96 rounded-full bg-sky-300/20 blur-3xl" />
+        <div className="absolute -top-20 left-[30%] size-72 rounded-full bg-primary/8 blur-3xl" />
+        <div className="absolute bottom-0 right-0 size-96 rounded-full bg-sky-300/20 blur-3xl dark:bg-sky-500/10" />
       </motion.div>
 
       <SidebarProvider>
-        <AppLayout />
+        <AppLayout isDark={isDark} toggleDark={() => setIsDark(!isDark)} />
       </SidebarProvider>
     </div>
   )
 }
 
-function AppLayout() {
+function AppLayout({ isDark, toggleDark }: { isDark: boolean; toggleDark: () => void }) {
   const { state } = useSidebar()
   const isCollapsed = state === "collapsed"
 
@@ -75,26 +91,24 @@ function AppLayout() {
         transition={{ type: "spring", stiffness: 210, damping: 28 }}
         className="hidden shrink-0 overflow-hidden lg:block lg:pr-5"
       >
-            <Card className="h-full rounded-[34px] border-[#023e8a]/10 bg-white/78 shadow-[0_16px_60px_-30px_rgba(2,62,138,0.6)] backdrop-blur-xl">
-              <CardContent className="flex h-full flex-col p-5">
-                <div className="mb-6 flex items-center justify-between">
+            <Card className="h-full rounded-[34px] border-primary/10 bg-white/78 shadow-[0_16px_60px_-30px_hsl(214_97%_27%/0.6)] backdrop-blur-xl dark:bg-slate-900/78 dark:shadow-[0_16px_60px_-30px_hsl(214_97%_73%/0.3)]">
+              <CardContent className={cn("flex h-full flex-col", isCollapsed ? "p-2" : "p-5")}>
+                <div className={cn("mb-6 flex items-center", isCollapsed ? "justify-center" : "justify-between")}>
                   <div className="flex items-center gap-3">
-                    <div className="grid size-11 shrink-0 place-content-center rounded-2xl bg-[#023e8a] text-white">
-                      <HugeiconsIcon icon={ChatBotIcon} size={22} strokeWidth={1.7} />
-                    </div>
+                    
                     {!isCollapsed ? (
                       <div>
-                      <p className="font-robit whitespace-nowrap text-lg font-bold text-[#023e8a]">NUST Bank</p>
-                      <p className="whitespace-nowrap text-xs text-slate-500">Precision Banking</p>
+                      <p className="font-robit whitespace-nowrap text-lg font-bold text-primary">NUST Bank</p>
+                      <p className="whitespace-nowrap text-xs text-slate-500 dark:text-slate-400">Precision Banking</p>
                       </div>
                     ) : null}
                   </div>
-                  <SidebarTrigger />
+                  <SidebarTrigger className={cn(isCollapsed && "rounded-full")} />
                 </div>
 
                 <div className="flex h-full flex-col">
-                  <Button className="h-12 justify-start gap-2 rounded-2xl bg-[#023e8a] px-4 text-sm font-semibold text-white hover:bg-[#023e8a]/90">
-                    <HugeiconsIcon icon={ChatAdd01Icon} size={26} strokeWidth={2.5} />
+                  <Button variant="ghost" className={cn("h-12 w-full gap-2 rounded-2xl px-4 text-sm font-semibold text-primary hover:bg-primary/8", isCollapsed ? "justify-center" : "justify-start")}>
+                    <HugeiconsIcon icon={Add01Icon} size={22} strokeWidth={2.5} />
                     {!isCollapsed ? "New Chat" : null}
                   </Button>
 
@@ -113,7 +127,7 @@ function AppLayout() {
                       >
                         <Button
                           variant="ghost"
-                          className="h-auto w-full justify-start rounded-2xl px-3.5 py-3 text-left text-sm leading-relaxed text-slate-500 hover:bg-[#023e8a]/5 hover:text-slate-700"
+                          className="h-auto w-full justify-start rounded-2xl px-3.5 py-3 text-left text-sm leading-relaxed text-slate-500 hover:bg-primary/5 hover:text-slate-700 dark:text-slate-400 dark:hover:text-slate-200"
                         >
                           {item}
                         </Button>
@@ -122,9 +136,9 @@ function AppLayout() {
                   </div> : null}
                 </ScrollArea>
 
-                <div className="mt-auto space-y-2 pt-4">
+                <div className={cn("mt-auto space-y-2 pt-4", isCollapsed && "flex flex-col items-center")}>
                  
-                    <Button variant="ghost" className="h-11 w-full justify-start gap-2.5 rounded-2xl px-3.5 text-slate-600 hover:bg-rose-50 hover:text-rose-500">
+                    <Button variant="ghost" className={cn("h-11 w-full gap-2.5 px-3.5 text-slate-600 hover:bg-rose-50 hover:text-rose-500 dark:text-slate-400 dark:hover:bg-rose-950/30", isCollapsed ? "justify-center rounded-full" : "justify-start rounded-2xl")}>
                       <HugeiconsIcon icon={Logout01Icon} size={17} strokeWidth={1.9} />
                       {!isCollapsed ? "Log Out" : null}
                     </Button>
@@ -138,7 +152,7 @@ function AppLayout() {
         layout
         initial={false}
         transition={{ type: "spring", stiffness: 210, damping: 28 }}
-        className="flex min-h-[92vh] flex-1 flex-col rounded-[34px] border border-white/70 bg-white/65 shadow-[0_18px_70px_-35px_rgba(2,62,138,0.7)] backdrop-blur-xl"
+        className="flex min-h-[92vh] flex-1 flex-col rounded-[34px] border border-white/70 bg-white/65 shadow-[0_18px_70px_-35px_hsl(214_97%_27%/0.7)] backdrop-blur-xl dark:border-white/10 dark:bg-slate-900/65 dark:shadow-[0_18px_70px_-35px_hsl(214_97%_73%/0.3)]"
       >
           <motion.header
             className="flex items-center justify-between px-4 py-4 sm:px-7"
@@ -147,10 +161,10 @@ function AppLayout() {
             transition={{ duration: 0.45 }}
           >
             <div className="flex items-center gap-3 lg:hidden">
-              <Button variant="outline" size="icon-sm" className="rounded-xl border-[#023e8a]/20 bg-white/90 text-[#023e8a]">
+              <Button variant="outline" size="icon-sm" className="rounded-xl border-primary/20 bg-white/90 text-primary dark:bg-slate-800/90">
                 <HugeiconsIcon icon={ChatIcon} size={16} />
               </Button>
-              <p className="font-robit text-base font-bold text-[#023e8a]">NUST Bank</p>
+              <p className="font-robit text-base font-bold text-primary">NUST Bank</p>
             </div>
 
             <div className="hidden items-center gap-2 lg:flex">
@@ -159,12 +173,14 @@ function AppLayout() {
             </div>
 
             <div className="flex items-center gap-2 sm:gap-3">
-              <Button variant="ghost" size="icon-sm" className="rounded-full text-[#023e8a] hover:bg-[#023e8a]/8">
-                <HugeiconsIcon icon={Notification01Icon} size={17} />
+              <Button
+                variant="ghost"
+                size="icon-sm"
+                className="rounded-full text-primary hover:bg-primary/8"
+                onClick={toggleDark}
+              >
+                <HugeiconsIcon icon={isDark ? Sun03Icon : Moon02Icon} size={17} />
               </Button>
-              <Avatar className="size-9 border border-[#023e8a]/20">
-                <AvatarFallback>MA</AvatarFallback>
-              </Avatar>
             </div>
           </motion.header>
 
@@ -176,11 +192,11 @@ function AppLayout() {
               viewport={{ once: true, amount: 0.25 }}
               transition={{ duration: 0.55, ease: [0.16, 1, 0.3, 1] }}
             >
-              <Badge className="mb-6 rounded-full bg-[#023e8a]/9 px-4 py-1.5 text-[#023e8a]">Premium Banking Intelligence</Badge>
-              <h1 className="font-robit text-center text-4xl leading-tight font-bold text-[#023e8a] sm:text-5xl">
+              <Badge className="mb-6 rounded-full bg-primary/9 px-4 py-1.5 text-primary">Premium Banking Intelligence</Badge>
+              <h1 className="font-robit text-center text-4xl leading-tight font-bold text-primary sm:text-5xl">
                 NUST Bank Assistant
               </h1>
-              <p className="mt-5 max-w-2xl text-center text-base leading-relaxed text-slate-600 sm:text-xl">
+              <p className="mt-5 max-w-2xl text-center text-base leading-relaxed text-slate-600 sm:text-xl dark:text-slate-400">
                 Experience the future of precision banking. Securely manage assets, analyze spending, and forecast wealth with your dedicated AI financial partner.
               </p>
 
@@ -191,22 +207,41 @@ function AppLayout() {
                 viewport={{ once: true, amount: 0.45 }}
                 transition={{ delay: 0.12, duration: 0.45 }}
               >
-                <Card className="rounded-[32px] border border-white/70 bg-white/88 p-2 shadow-[0_24px_60px_-30px_rgba(2,62,138,0.75)]">
-                  <CardContent className="p-2">
-                    <div className="flex items-center gap-3">
-                      <Button variant="ghost" size="icon" className="rounded-full bg-[#023e8a]/8 text-[#023e8a] hover:bg-[#023e8a]/12">
-                        <HugeiconsIcon icon={Search01Icon} size={18} strokeWidth={1.9} />
-                      </Button>
-                      <Input
-                        className="h-14 border-0 bg-transparent pl-0 text-sm sm:text-base focus-visible:ring-0"
-                        placeholder="Ask about your balance, investments, or market trends..."
-                      />
-                      <Button size="icon-lg" className="rounded-full bg-[#023e8a] text-white shadow-lg shadow-[#023e8a]/30 hover:bg-[#023e8a]/90">
-                        <HugeiconsIcon icon={ArrowRight01Icon} size={20} strokeWidth={2} />
-                      </Button>
+                <div className="overflow-hidden rounded-[24px] border-[1.5px] border-primary/15 bg-gradient-to-b from-white/90 to-white/70 shadow-[0_24px_60px_-20px_hsl(214_97%_27%/0.25),inset_0_2px_16px_rgba(255,255,255,0.9)] backdrop-blur-2xl dark:from-slate-800/90 dark:to-slate-800/70 dark:shadow-[0_24px_60px_-20px_hsl(214_97%_73%/0.15),inset_0_2px_16px_rgba(255,255,255,0.05)]">
+                  {/* Top row — @Add context pill */}
+                  <div className="px-5 pt-4 pb-1">
+                    <button className="inline-flex items-center gap-1.5 rounded-full border border-primary/15 bg-primary/[0.06] px-3.5 py-1.5 text-xs font-medium text-primary/70 transition hover:border-primary/30 hover:bg-primary/10 hover:text-primary">
+                      <span className="text-sm font-semibold leading-none">@</span>
+                      Add context
+                    </button>
+                  </div>
+
+                  {/* Textarea */}
+                  <div className="px-5 py-2">
+                    <Textarea
+                      className="min-h-[48px] w-full resize-none border-0 bg-transparent p-0 text-[15px] leading-relaxed text-slate-800 placeholder:text-slate-400 focus-visible:ring-0 dark:text-slate-200 dark:placeholder:text-slate-500"
+                      placeholder="Ask about your balance, investments, or market trends..."
+                      rows={1}
+                    />
+                  </div>
+
+                  {/* Bottom toolbar */}
+                  <div className="flex items-center justify-between border-t border-primary/10 px-5 py-2.5">
+                    <div className="flex items-center gap-4">
+                      <button className="text-primary/40 transition hover:text-primary/70">
+                        <HugeiconsIcon icon={Attachment01Icon} size={18} strokeWidth={1.8} />
+                      </button>
+                      <span className="text-xs font-medium text-primary/50">Auto</span>
+                      <button className="inline-flex items-center gap-1.5 text-xs font-medium text-primary/50 transition hover:text-primary/80">
+                        <HugeiconsIcon icon={InternetIcon} size={16} strokeWidth={1.8} />
+                        All Sources
+                      </button>
                     </div>
-                  </CardContent>
-                </Card>
+                    <Button className="size-10 shrink-0 rounded-full border border-primary/15 bg-primary p-0 text-primary-foreground shadow-lg shadow-primary/25 transition hover:bg-primary/90">
+                      <HugeiconsIcon icon={ArrowUp02Icon} size={20} strokeWidth={2.2} />
+                    </Button>
+                  </div>
+                </div>
               </motion.div>
 
               <div className="mt-6 flex w-full flex-wrap items-center justify-center gap-2.5">
@@ -220,7 +255,7 @@ function AppLayout() {
                   >
                     <Button
                       variant="outline"
-                      className="h-10 rounded-full border-[#023e8a]/12 bg-white/70 px-4 text-xs text-[#023e8a] hover:bg-[#023e8a]/7"
+                      className="h-10 rounded-full border-primary/12 bg-white/70 px-4 text-xs text-primary hover:bg-primary/7 dark:bg-slate-800/70 dark:hover:bg-primary/10"
                     >
                       {`\"${action}\"`}
                     </Button>
