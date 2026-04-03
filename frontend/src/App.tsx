@@ -60,7 +60,7 @@ function App() {
     try {
       const res = await fetch("https://curblike-theologically-lavelle.ngrok-free.dev/chat", {
         method: "POST",
-        headers: { "Content-Type": "application/json" },
+        headers: { "Content-Type": "application/json", "ngrok-skip-browser-warning": "69420" },
         body: JSON.stringify({ query: message }),
       })
 
