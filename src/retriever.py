@@ -16,6 +16,7 @@ DATA_DIR = ROOT / "data"
 CHUNKS_PATH = DATA_DIR / "chunks.json"
 INDEX_PATH = DATA_DIR / "faiss.index"
 CHUNKS_STORE_PATH = DATA_DIR / "chunks_store.pkl"
+DYNAMIC_CHUNKS_PATH = DATA_DIR / "dynamic_chunks.json"
 
 EMBED_MODEL = "sentence-transformers/all-MiniLM-L6-v2"
 RERANK_MODEL = "cross-encoder/ms-marco-MiniLM-L-6-v2"
@@ -26,10 +27,59 @@ class Retriever:
     def __init__(self, index_path: Path = INDEX_PATH, chunks_path: Path = CHUNKS_STORE_PATH):
         self.model = SentenceTransformer(EMBED_MODEL)
         self._cross_encoder = None
+
+        # Load base index (never overwritten by ingestion)
         self.index = faiss.read_index(str(index_path))
         with open(chunks_path, "rb") as f:
             self.chunks = pickle.load(f)
-        logger.info(f"Loaded FAISS index with {self.index.ntotal} vectors")
+        logger.info(f"Loaded base FAISS index with {self.index.ntotal} vectors")
+
+        # Merge any previously ingested dynamic chunks into the in-memory index
+        if DYNAMIC_CHUNKS_PATH.exists():
+            with open(DYNAMIC_CHUNKS_PATH, encoding="utf-8") as f:
+                dynamic = json.load(f)
+            if dynamic:
+                logger.info(f"Merging {len(dynamic)} dynamic chunks into in-memory index...")
+                self._embed_and_add(dynamic)
+                logger.info(f"In-memory index now has {self.index.ntotal} vectors total")
+
+    def _embed_and_add(self, chunks: list[dict]) -> None:
+        """Embed chunks and add them to the in-memory FAISS index (does NOT touch faiss.index file)."""
+        texts = [c["text"] for c in chunks]
+        embeddings = self._embed(texts)
+        self.index.add(embeddings)
+        self.chunks.extend(chunks)
+
+    def add_documents(self, chunks: list[dict]) -> int:
+        """
+        Hot-add new chunks to the live in-memory index and persist them to
+        dynamic_chunks.json. The base faiss.index and chunks_store.pkl are
+        never modified, so a fresh server restart stays clean unless
+        dynamic_chunks.json is present.
+
+        Returns the number of chunks successfully added.
+        """
+        if not chunks:
+            return 0
+
+        # Embed and add to in-memory index
+        self._embed_and_add(chunks)
+
+        # Persist to dynamic_chunks.json (append, don't overwrite)
+        existing: list[dict] = []
+        if DYNAMIC_CHUNKS_PATH.exists():
+            with open(DYNAMIC_CHUNKS_PATH, encoding="utf-8") as f:
+                existing = json.load(f)
+        existing.extend(chunks)
+        with open(DYNAMIC_CHUNKS_PATH, "w", encoding="utf-8") as f:
+            json.dump(existing, f, ensure_ascii=False, indent=2)
+
+        logger.info(
+            f"Added {len(chunks)} dynamic chunks. "
+            f"In-memory index now has {self.index.ntotal} vectors. "
+            f"dynamic_chunks.json now has {len(existing)} entries."
+        )
+        return len(chunks)
 
     def _get_cross_encoder(self) -> CrossEncoder:
         if self._cross_encoder is None:
