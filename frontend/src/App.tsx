@@ -2,16 +2,18 @@ import { useState, useEffect, useRef } from "react"
 import { motion } from "framer-motion"
 import { HugeiconsIcon } from "@hugeicons/react"
 import {
-  Attachment01Icon,
   Moon02Icon,
   Sun03Icon,
   ArrowUp02Icon,
+  CloudUploadIcon,
 } from "@hugeicons/core-free-icons"
 
 import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
 import { Textarea } from "@/components/ui/textarea"
 import { ScrollArea } from "@/components/ui/scroll-area"
+import { Toaster } from "@/components/ui/sonner"
+import { IngestDialog } from "@/components/IngestDialog"
 import { cn } from "@/lib/utils"
 
 const quickActions = [
@@ -39,6 +41,7 @@ function App() {
   const [query, setQuery] = useState("")
   const [messages, setMessages] = useState<{ role: "user" | "assistant"; content: string }[]>([])
   const [isLoading, setIsLoading] = useState(false)
+  const [ingestOpen, setIngestOpen] = useState(false)
   const messagesEndRef = useRef<HTMLDivElement>(null)
 
   const scrollToBottom = () => {
@@ -218,12 +221,14 @@ function App() {
 
                   {/* Bottom toolbar */}
                   <div className="flex items-center justify-between border-t border-primary/10 px-5 py-2.5">
-                    <div className="flex items-center gap-4">
-                      <button className="text-primary/40 transition hover:text-primary/70">
-                        <HugeiconsIcon icon={Attachment01Icon} size={18} strokeWidth={1.8} />
+                    <div className="flex items-center gap-3">
+                      <button
+                        onClick={() => setIngestOpen(true)}
+                        className="flex items-center gap-1.5 rounded-full border border-primary/15 bg-primary/5 px-3 py-1.5 text-xs font-medium text-primary/70 transition hover:bg-primary/10 hover:text-primary"
+                      >
+                        <HugeiconsIcon icon={CloudUploadIcon} size={13} strokeWidth={2} />
+                        Upload Docs / FAQ / Text
                       </button>
-                      <span className="text-xs font-medium text-primary/50">Auto</span>
-                      
                     </div>
                     <Button
                       className={cn(
@@ -268,6 +273,9 @@ function App() {
           </main>
         </motion.div>
       </motion.div>
+
+      <IngestDialog open={ingestOpen} onOpenChange={setIngestOpen} />
+      <Toaster position="bottom-right" theme={isDark ? "dark" : "light"} richColors />
     </div>
   )
 }
